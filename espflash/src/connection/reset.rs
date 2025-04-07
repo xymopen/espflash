@@ -16,6 +16,7 @@ use crate::{
     connection::{Connection, Port, USB_SERIAL_JTAG_PID},
     error::Error,
     flasher::FLASH_WRITE_SIZE,
+    targets::Chip,
 };
 
 /// Default time to wait before releasing the boot pin after a reset
@@ -242,6 +243,7 @@ pub fn soft_reset(
     connection: &mut Connection,
     stay_in_bootloader: bool,
     is_stub: bool,
+    chip: Chip,
 ) -> Result<(), Error> {
     debug!("Using SoftReset reset strategy");
     if !is_stub {
@@ -283,6 +285,8 @@ pub fn soft_reset(
         connection.with_timeout(CommandType::FlashEnd.timeout(), |connection| {
             connection.write_command(Command::FlashEnd { reboot: true })
         })?;
+    } else if chip != Chip::Esp8266 {
+        return Err(Error::SoftResetNotAvailable);
     } else {
         // Running user code from stub loader requires some hacks in the stub loader
         connection.with_timeout(CommandType::RunUserCode.timeout(), |connection| {
@@ -357,6 +361,10 @@ pub enum ResetAfterOperation {
     /// sequence.
     #[default]
     HardReset,
+    /// Runs the user firmware, but any subsequent reset will return to the serial bootloader.
+    ///
+    /// Only supported on ESP8266.
+    SoftReset,
     /// Leaves the chip in the serial bootloader, no reset is performed.
     NoReset,
     /// Leaves the chip in the stub bootloader, no reset is performed.

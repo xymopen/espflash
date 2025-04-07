@@ -6,7 +6,7 @@
 
 Serial flasher utilities for Espressif devices, based loosely on [esptool.py](https://github.com/espressif/esptool/).
 
-Supports the **ESP32**, **ESP32-C2/C3/C6**, **ESP32-H2**, **ESP32-P4**, and **ESP32-S2/S3**.
+Supports the **ESP32**, **ESP32-C2/C3/C6**, **ESP32-H2**, **ESP32-P4**, **ESP32-S2/S3**, and **ESP8266**.
 
 > [!IMPORTANT]
 > Espressif considers espflash and cargo-espflash to be feature-complete at this time. This does not mean we will stop maintaining them; contributions are still welcome. However, we do not plan to pursue further development at this point in time.

@@ -138,6 +138,10 @@ pub enum Error {
     )]
     SerialNotFound(String),
 
+    #[error("Soft reseting is currently only supported on ESP8266")]
+    #[diagnostic(code(espflash::soft_reset_not_available))]
+    SoftResetNotAvailable,
+
     #[error("The {chip} does not support {feature}")]
     #[diagnostic(code(espflash::unsupported_feature))]
     UnsupportedFeature { chip: Chip, feature: String },

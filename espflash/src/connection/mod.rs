@@ -29,6 +29,7 @@ use crate::{
     command::{Command, CommandType},
     connection::reset::soft_reset,
     error::{ConnectionError, Error, ResultExt, RomError, RomErrorKind},
+    targets::Chip,
 };
 
 pub mod reset;
@@ -256,14 +257,19 @@ impl Connection {
     }
 
     // Reset the device taking into account the reset after argument
-    pub fn reset_after(&mut self, is_stub: bool) -> Result<(), Error> {
+    pub fn reset_after(&mut self, is_stub: bool, chip: Chip) -> Result<(), Error> {
         let pid = self.get_usb_pid()?;
 
         match self.after_operation {
             ResetAfterOperation::HardReset => hard_reset(&mut self.serial, pid),
+            ResetAfterOperation::SoftReset => {
+                info!("Soft resetting");
+                soft_reset(self, false, is_stub, chip)?;
+                Ok(())
+            }
             ResetAfterOperation::NoReset => {
                 info!("Staying in bootloader");
-                soft_reset(self, true, is_stub)?;
+                soft_reset(self, true, is_stub, chip)?;
 
                 Ok(())
             }

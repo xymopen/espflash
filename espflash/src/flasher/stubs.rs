@@ -26,6 +26,8 @@ pub(crate) const EXPECTED_STUB_HANDSHAKE: &str = "OHAI";
 
 pub(crate) const FLASH_SECTOR_SIZE: usize = 0x1000;
 pub(crate) const FLASH_WRITE_SIZE: usize = 0x400;
+const FLASH_BLOCK_SIZE: usize = 0x100;
+pub(crate) const FLASH_SECTORS_PER_BLOCK: usize = FLASH_SECTOR_SIZE / FLASH_BLOCK_SIZE;
 
 // Include stub objects in binary
 const STUB_32: &str = include_str!("../../resources/stubs/stub_flasher_32.toml");
@@ -36,6 +38,7 @@ const STUB_32H2: &str = include_str!("../../resources/stubs/stub_flasher_32h2.to
 const STUB_32P4: &str = include_str!("../../resources/stubs/stub_flasher_32p4.toml");
 const STUB_32S2: &str = include_str!("../../resources/stubs/stub_flasher_32s2.toml");
 const STUB_32S3: &str = include_str!("../../resources/stubs/stub_flasher_32s3.toml");
+const STUB_8266: &str = include_str!("../../resources/stubs/stub_flasher_8266.toml");
 
 impl FlashStub {
     /// Fetch flash stub for the provided chip
@@ -49,6 +52,7 @@ impl FlashStub {
             Chip::Esp32p4 => STUB_32P4,
             Chip::Esp32s2 => STUB_32S2,
             Chip::Esp32s3 => STUB_32S3,
+            Chip::Esp8266 => STUB_8266,
         };
 
         let stub: FlashStub = toml::from_str(s).unwrap();

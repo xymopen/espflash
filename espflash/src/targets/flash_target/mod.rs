@@ -1,8 +1,9 @@
 pub(crate) use self::ram::MAX_RAM_BLOCK_SIZE;
-pub use self::{esp32::Esp32Target, ram::RamTarget};
+pub use self::{esp32::Esp32Target, esp8266::Esp8266Target, ram::RamTarget};
 use crate::{connection::Connection, elf::RomSegment, error::Error};
 
 mod esp32;
+mod esp8266;
 mod ram;
 
 /// Progress update callbacks

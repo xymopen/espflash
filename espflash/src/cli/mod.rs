@@ -590,9 +590,10 @@ pub fn erase_flash(args: EraseFlashArgs, config: &Config) -> Result<()> {
     info!("Erasing Flash...");
 
     flasher.erase_flash()?;
+    let chip = flasher.chip();
     flasher
         .connection()
-        .reset_after(!args.connect_args.no_stub)?;
+        .reset_after(!args.connect_args.no_stub, chip)?;
 
     info!("Flash has been erased!");
 
@@ -612,9 +613,10 @@ pub fn erase_region(args: EraseRegionArgs, config: &Config) -> Result<()> {
     );
 
     flasher.erase_region(args.addr, args.size)?;
+    let chip = flasher.chip();
     flasher
         .connection()
-        .reset_after(!args.connect_args.no_stub)?;
+        .reset_after(!args.connect_args.no_stub, chip)?;
 
     Ok(())
 }

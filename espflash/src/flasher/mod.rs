@@ -44,7 +44,7 @@ use crate::{
 pub use crate::targets::flash_target::ProgressCallbacks;
 
 #[cfg(feature = "serialport")]
-pub(crate) use stubs::{FLASH_SECTOR_SIZE, FLASH_WRITE_SIZE};
+pub(crate) use stubs::{FLASH_SECTOR_SIZE, FLASH_WRITE_SIZE, FLASH_SECTORS_PER_BLOCK};
 
 #[cfg(feature = "serialport")]
 pub(crate) mod stubs;
@@ -191,21 +191,37 @@ impl FlashSize {
     ///
     /// ## Values:
     ///
-    /// * https://docs.espressif.com/projects/esptool/en/latest/esp32s3/advanced-topics/firmware-image-format.html#file-header
-    pub const fn encode_flash_size(self: FlashSize) -> Result<u8, Error> {
+    /// * [ESP8266](https://docs.espressif.com/projects/esptool/en/latest/esp8266/advanced-topics/firmware-image-format.html#file-header)
+    /// * [Others](https://docs.espressif.com/projects/esptool/en/latest/esp32s3/advanced-topics/firmware-image-format.html#file-header)
+    pub const fn encode_flash_size(self: FlashSize, chip: Chip) -> Result<u8, Error> {
         use FlashSize::*;
 
-        let encoded = match self {
-            _1Mb => 0,
-            _2Mb => 1,
-            _4Mb => 2,
-            _8Mb => 3,
-            _16Mb => 4,
-            _32Mb => 5,
-            _64Mb => 6,
-            _128Mb => 7,
-            _256Mb => 8,
-            _ => return Err(Error::UnsupportedFlash(self as u8)),
+        let encoded = match chip {
+            Chip::Esp8266 => match self {
+                _256Kb => 1,
+                _512Kb => 0,
+                _1Mb => 2,
+                _2Mb => 3,
+                _4Mb => 4,
+                // Currently not supported
+                // _2Mb_c1 => 5,
+                // _4Mb_c1 => 6,
+                _8Mb => 8,
+                _16Mb => 9,
+                _ => return Err(Error::UnsupportedFlash(self as u8)),
+            },
+            _ => match self {
+                _1Mb => 0,
+                _2Mb => 1,
+                _4Mb => 2,
+                _8Mb => 3,
+                _16Mb => 4,
+                _32Mb => 5,
+                _64Mb => 6,
+                _128Mb => 7,
+                _256Mb => 8,
+                _ => return Err(Error::UnsupportedFlash(self as u8)),
+            },
         };
 
         Ok(encoded)
@@ -629,9 +645,14 @@ impl Flasher {
         // Now that we have established a connection and detected the chip and flash
         // size, we can set the baud rate of the connection to the configured value.
         if let Some(baud) = speed {
-            if baud > 115_200 {
-                warn!("Setting baud rate higher than 115,200 can cause issues");
-                flasher.change_baud(baud)?;
+            match flasher.chip {
+                Chip::Esp8266 => (), // Not available
+                _ => {
+                    if baud > 115_200 {
+                        warn!("Setting baud rate higher than 115,200 can cause issues");
+                        flasher.change_baud(baud)?;
+                    }
+                }
             }
         }
 
@@ -780,15 +801,27 @@ impl Flasher {
     }
 
     fn enable_flash(&mut self, spi_params: SpiAttachParams) -> Result<(), Error> {
-        self.connection
-            .with_timeout(CommandType::SpiAttach.timeout(), |connection| {
-                connection.command(if self.use_stub {
-                    Command::SpiAttachStub { spi_params }
-                } else {
-                    Command::SpiAttach { spi_params }
-                })
-            })?;
-
+        match self.chip {
+            Chip::Esp8266 => {
+                self.connection.command(Command::FlashBegin {
+                    supports_encryption: false,
+                    offset: 0,
+                    block_size: FLASH_WRITE_SIZE as u32,
+                    size: 0,
+                    blocks: 0,
+                })?;
+            }
+            _ => {
+                self.connection
+                    .with_timeout(CommandType::SpiAttach.timeout(), |connection| {
+                        connection.command(if self.use_stub {
+                            Command::SpiAttachStub { spi_params }
+                        } else {
+                            Command::SpiAttach { spi_params }
+                        })
+                    })?;
+            }
+        }
         Ok(())
     }
 
@@ -895,7 +928,14 @@ impl Flasher {
         let chip = self.chip();
         let target = chip.into_target();
 
-        let revision = Some(target.chip_revision(self.connection())?);
+        // The ESP8266 does not have readable major/minor revision numbers, so we have
+        // nothing to return if targeting it.
+        let revision = if chip != Chip::Esp8266 {
+            Some(target.chip_revision(self.connection())?)
+        } else {
+            None
+        };
+
         let crystal_frequency = target.crystal_freq(self.connection())?;
         let features = target
             .chip_features(self.connection())?
@@ -961,11 +1001,17 @@ impl Flasher {
                 .flash_target(self.spi_params, self.use_stub, self.verify, self.skip);
         target.begin(&mut self.connection).flashing()?;
 
-        let chip_revision = Some(
-            self.chip
-                .into_target()
-                .chip_revision(&mut self.connection)?,
-        );
+        // The ESP8266 does not have readable major/minor revision numbers, so we have
+        // nothing to return if targeting it.
+        let chip_revision = if self.chip != Chip::Esp8266 {
+            Some(
+                self.chip
+                    .into_target()
+                    .chip_revision(&mut self.connection)?,
+            )
+        } else {
+            None
+        };
 
         let image = self.chip.into_target().get_flash_image(
             &image,

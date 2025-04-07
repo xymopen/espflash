@@ -6,7 +6,7 @@ use crate::{
     elf::FirmwareImage,
     error::Error,
     flasher::{FlashData, FlashFrequency},
-    image_format::IdfBootloaderFormat,
+    image_format::{IdfBootloaderFormat, ImageFormat},
     targets::{Chip, Esp32Params, ReadEFuse, SpiRegisters, Target, XtalFrequency},
 };
 
@@ -73,7 +73,7 @@ impl Target for Esp32p4 {
         flash_data: FlashData,
         _chip_revision: Option<(u32, u32)>,
         xtal_freq: XtalFrequency,
-    ) -> Result<IdfBootloaderFormat<'a>, Error> {
+    ) -> Result<Box<dyn ImageFormat<'a> + 'a>, Error> {
         if xtal_freq != XtalFrequency::_40Mhz {
             return Err(Error::UnsupportedFeature {
                 chip: Chip::Esp32p4,
@@ -81,7 +81,7 @@ impl Target for Esp32p4 {
             });
         }
 
-        IdfBootloaderFormat::new(
+        Ok(Box::new(IdfBootloaderFormat::new(
             image,
             Chip::Esp32p4,
             flash_data.min_chip_rev,
@@ -91,7 +91,7 @@ impl Target for Esp32p4 {
             flash_data.target_app_partition,
             flash_data.bootloader,
             flash_data.flash_settings,
-        )
+        )?))
     }
 
     fn spi_registers(&self) -> SpiRegisters {

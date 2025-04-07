@@ -267,11 +267,11 @@ pub fn erase_parts(args: ErasePartsArgs, config: &Config) -> Result<()> {
     };
 
     info!("Erasing the following partitions: {:?}", args.erase_parts);
-
+    let chip = flasher.chip();
     erase_partitions(&mut flasher, partition_table, Some(args.erase_parts), None)?;
     flasher
         .connection()
-        .reset_after(!args.connect_args.no_stub)?;
+        .reset_after(!args.connect_args.no_stub, args.connect_args.chip.unwrap_or(chip))?;
 
     Ok(())
 }
