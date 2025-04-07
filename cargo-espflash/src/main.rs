@@ -18,7 +18,6 @@ use espflash::{
     flasher::{parse_partition_table, verify_minimum_revision},
     logging::initialize_logger,
     targets::{Chip, XtalFrequency},
-    update::check_for_update,
 };
 use log::{debug, info, LevelFilter};
 use miette::{IntoDiagnostic, Result, WrapErr};
@@ -51,10 +50,6 @@ enum CargoSubcommand {
     Espflash {
         #[clap(subcommand)]
         subcommand: Commands,
-
-        /// Do not check for updates
-        #[clap(short, long, global = true, action)]
-        skip_update_check: bool,
     },
 }
 
@@ -210,16 +205,8 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
     let CargoSubcommand::Espflash {
         subcommand: args,
-        skip_update_check,
     } = cli.subcommand;
-    debug!("{:#?}, {:#?}", args, skip_update_check);
-
-    // Only check for updates once the command-line arguments have been processed,
-    // to avoid printing any update notifications when the help message is
-    // displayed.
-    if !skip_update_check {
-        check_for_update(env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
-    }
+    debug!("{:#?}", args);
 
     // Load any user configuration, if present.
     let config = Config::load()?;
