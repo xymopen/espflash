@@ -15,7 +15,7 @@ use espflash::{
         ReadFlashArgs,
     },
     error::Error,
-    flasher::parse_partition_table,
+    flasher::{parse_partition_table, verify_minimum_revision},
     logging::initialize_logger,
     targets::{Chip, XtalFrequency},
     update::check_for_update,
@@ -243,7 +243,19 @@ fn flash(args: FlashArgs, config: &Config) -> Result<()> {
         args.flash_args.no_verify,
         args.flash_args.no_skip,
     )?;
-    flasher.verify_minimum_revision(args.flash_args.image.min_chip_rev)?;
+
+    let target = flasher.chip().into_target();
+    match target.chip_revision(flasher.connection()) {
+        Ok(revision) => {
+            verify_minimum_revision(revision, args.flash_args.image.min_chip_rev)?;
+        },
+        Err(Error::UnsupportedFeature { chip: _, feature: _ }) => {
+            // Continue
+        },
+        Err(err) => {
+            return Err(err.into());
+        }
+    }
 
     // If the user has provided a flash size via a command-line argument, we'll
     // override the detected (or default) value with this.
